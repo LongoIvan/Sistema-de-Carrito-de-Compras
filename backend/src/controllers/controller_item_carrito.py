@@ -1,9 +1,18 @@
-from backend.src.models.model_item_carrito import ItemCarrito
+from flask import Blueprint, jsonify
 
-def __str__(self):
-        return(f"""
-            Id Item Carrito: {self.id_item_carrito}
-            Id Item Producto: {self.id_item_producto}
-            Cantidad: {self.cantidad}
-            Precio Unitario: {self.precio_unitario}
-""")
+from backend.src.database.database import fetch_all
+
+
+items_carrito_bp = Blueprint("items_carrito", __name__)
+
+
+@items_carrito_bp.get("/api/items-carrito")
+def listar_items_carrito():
+    return jsonify(
+        fetch_all(
+            """
+            SELECT id_item_carrito, idcarrito, id_item_producto, cantidad, precio_unitario
+            FROM item_carrito
+            """
+        )
+    )

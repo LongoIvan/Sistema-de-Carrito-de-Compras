@@ -1,13 +1,21 @@
-from backend.src.models.model_productos import Producto
+from flask import Blueprint, jsonify
 
-def __str__(self):
-    return (f"""
-    Id_producto: {self.idproducto}
-    Nombre: {self.nombre}
-    Precio: {self.precio}
-    Stock: {self.stock}
-    Categoria: {self.categoria}
-    Fecha: {self.fecha}
-    Activo: {self.activo}
-    Descripcion: {self.descripcion}
-""")
+from backend.src.database.database import fetch_all
+
+
+productos_bp = Blueprint("productos", __name__)
+
+
+@productos_bp.get("/api/productos")
+def listar_productos():
+    productos = fetch_all(
+        """
+        SELECT idproducto, nombre, precio, stock, categoria, fecha, activo, descripcion
+        FROM producto
+        """
+    )
+    for producto in productos:
+        producto["fecha"] = producto["fecha"].isoformat()
+        producto["activo"] = bool(producto["activo"])
+
+    return jsonify(productos)
