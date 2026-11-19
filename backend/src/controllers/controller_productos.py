@@ -127,3 +127,51 @@ def quitar_stock (producto, stock):
             return
     print ("El producto no se encuentra listado")
 
+def modificar_nombre(producto,nombre):
+    for product in productos:
+        if product.idproducto == producto.idproducto:
+            if not isinstance(nombre,str):
+                print("Por favor ingresar el nombre del producto correctamente")
+                return
+            nombre = nombre.strip()
+            if not nombre:
+                print ("Por favor ingrese el nombre del producto correctamente(no vacio)")
+                return
+            product.nombre = nombre
+            print ("El nombre del producto fue modificado correctamente!")
+            return
+    print ("El producto no se encuentra listado")
+
+def modificar_descripcion(producto,descripcion):
+    for product in productos:
+        if product.idproducto == producto.idproducto:
+            if not isinstance(descripcion,str):
+                print("Por favor ingresar la descripcion del producto correctamente")
+                return
+            descripcion = descripcion.strip()
+            if not descripcion:
+                print ("Por favor ingresar la descripcion del producto correctamente(no vacio)")
+                return
+            product.descripcion = descripcion
+            print ("La descripcion del producto fue modificado correctamente!")
+            return
+    print ("El producto no se encuentra listado")
+
+def modificar_categoria (producto,categoria):
+    for product in productos:
+        if product.idproducto == producto.idproducto:
+            if not isinstance (categoria, Categoria):
+                print ("Por favor introduzca una categoria valida")
+                return
+            product.categoria = categoria
+            print ("La categoria se modifico correctamente")
+            return
+    print ("El producto no se encuentra listado")
+
+def eliminar_producto(producto):
+    for product in productos:
+        if product.idproducto == producto.idproducto:
+            productos.remove(product)
+            print ("El producto fue eliminado correctamente de la lista")
+            return
+    print ("El producto no se encuentra listado")
