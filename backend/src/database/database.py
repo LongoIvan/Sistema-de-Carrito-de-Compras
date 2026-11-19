@@ -86,3 +86,12 @@ def fetch_all(query):
             with connection.cursor() as cursor:
                 cursor.execute(query)
                 return [dict(row) for row in cursor.fetchall()]
+
+def execute_query(query, params):
+    from flask import current_app
+
+    with closing(get_connection(current_app.config["DATABASE_URL"])) as connection:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.rowcount

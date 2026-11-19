@@ -7,6 +7,7 @@ from backend.src.models.model_carrito import estadocarrito
 def mostrar_idcarrito(self):
     return self.idcarrito
 
+
 def mostrar_id_usuario(self):
     return self.idusuario
 
