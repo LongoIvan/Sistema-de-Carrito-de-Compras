@@ -1,13 +1,13 @@
-from backend.src.models.model_usuarios import Usuario
-from backend.src.database.database import fetch_all, execute_query
-from flask import Flask, jsonify, request
+from flask import Blueprint, jsonify, request
+from werkzeug.security import generate_password_hash
+
+from backend.src.database.database import execute_query, fetch_all
+
+usuarios_bp = Blueprint("usuarios", __name__)
 
 
-app = Flask(__name__)
 
-#--Devuelve Variables--
-
-@app.route("/usuario/<int:id>", methods=["GET"])
+@usuarios_bp.route("/usuario/<int:id>", methods=["GET"])
 def mostrar_idusuario(id):
     consulta = "SELECT idusuario FROM usuario"
     usuarios = fetch_all(consulta)
@@ -18,7 +18,7 @@ def mostrar_idusuario(id):
 
     return jsonify({"error": "Usuario no encontrado"}), 404
 
-@app.route("/usuario/<int:id>/nombre", methods=["GET"])
+@usuarios_bp.route("/usuario/<int:id>/nombre", methods=["GET"])
 def mostrar_nombre(id):
     consulta = "SELECT idusuario, nombre FROM usuario"
     usuarios = fetch_all(consulta)
@@ -30,7 +30,7 @@ def mostrar_nombre(id):
     return jsonify({"error": "Usuario no encontrado"}), 404
 
 
-@app.route("/usuario/<int:id>/mail", methods=["GET"])
+@usuarios_bp.route("/usuario/<int:id>/mail", methods=["GET"])
 def mostrar_mail(id):
     consulta = "SELECT idusuario, mail FROM usuario"
     usuarios = fetch_all(consulta)
@@ -42,7 +42,7 @@ def mostrar_mail(id):
     return jsonify({"error": "Usuario no encontrado"}), 404
 
 
-@app.route("/usuario/<int:id>/rol", methods=["GET"])
+@usuarios_bp.route("/usuario/<int:id>/rol", methods=["GET"])
 def mostrar_rol(id):
     consulta = "SELECT idusuario, rol FROM usuario"
     usuarios = fetch_all(consulta)
@@ -55,7 +55,7 @@ def mostrar_rol(id):
 
 
 #--Modifica Valores--
-@app.route("/usuario/<int:id>/nombre", methods=["PATCH"])
+@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
 def modificar_nombre(id):
     datos = request.get_json(silent=True)
 
@@ -85,7 +85,7 @@ def modificar_nombre(id):
     return jsonify({"mensaje": "Nombre actualizado", "nombre": nuevoNombre}), 200
     
 
-@app.route("/usuario/<int:id>/mail", methods=["PATCH"])
+@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
 def modificar_mail(id):
     datos = request.get_json(silent=True)
 
@@ -127,7 +127,7 @@ def modificar_mail(id):
 
 from werkzeug.security import generate_password_hash
 
-@app.route("/usuario/<int:id>/contrasenia", methods=["PATCH"])
+@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
 def modificar_contrasenia(id):
     datos = request.get_json(silent=True)
 
@@ -162,7 +162,7 @@ def modificar_contrasenia(id):
 
     return jsonify({"mensaje": "Contraseña actualizada"}), 200
 
-@app.route("/usuario", methods=["POST"])
+@usuarios_bp.route("/usuario", methods=["POST"])
 def agregar_usuario():
     datos = request.get_json(silent=True)
 
@@ -239,7 +239,7 @@ def agregar_usuario():
         "mail": mail
     }), 201
 
-@app.route("/usuario/<int:id>", methods=["DELETE"])
+@usuarios_bp.route("/usuario/<int:id>", methods=["DELETE"])
 def eliminar_usuario(id):
 
     consulta = "DELETE FROM usuario WHERE idusuario = %s"
@@ -251,9 +251,3 @@ def eliminar_usuario(id):
 
     return jsonify({"mensaje": "Usuario eliminado correctamente"}), 200
 
-
-
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
