@@ -1,39 +1,48 @@
-from flask import Blueprint, jsonify
-
-from backend.src.database.database import fetch_all
-
-
-carritos_bp = Blueprint("carritos", __name__)
+from backend.src.models.model_carrito import Carrito
+from backend.src.models.model_item_carrito import ItemCarrito
+from backend.src.models.model_carrito import estadocarrito
 
 
-@carritos_bp.get("/api/carritos")
-def listar_carritos():
-    carritos = fetch_all(
-        """
-        SELECT
-            c.idcarrito,
-            c.idusuario,
-            c.fecha,
-            c.estado,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'nombre_producto', p.nombre,  -- Reemplazamos el ID por el nombre del producto
-                        'cantidad', i.cantidad,
-                        'precio_unitario', i.precio_unitario
-                    )
-                    ORDER BY i.id_item_carrito
-                ) FILTER (WHERE i.id_item_carrito IS NOT NULL),
-                '[]'::json
-            ) AS item
-        FROM carrito AS c
-        LEFT JOIN item_carrito AS i ON i.idcarrito = c.idcarrito
-        LEFT JOIN producto AS p ON p.idproducto = i.id_item_producto  -- Hacemos el JOIN con la tabla producto
-        GROUP BY c.idcarrito, c.idusuario, c.fecha, c.estado
-        ORDER BY c.idcarrito
-        """
-    )
-    for carrito in carritos:
-        carrito["fecha"] = carrito["fecha"].isoformat()
+#Devuelve variables
+def mostrar_idcarrito(self):
+    return self.idcarrito
 
-    return jsonify(carritos)
+def mostrar_id_usuario(self):
+    return self.idusuario
+
+def mostrar_fecha(self):
+    return self.fecha
+
+def mostrar_estado(self):
+    return self.estado
+
+def mostrar_items(self):
+    return self.item
+
+#Operadores:
+def agregar_item(self, itemagre:ItemCarrito):
+    if type(itemagre) == ItemCarrito and itemagre not in self.item:
+        self.item.append(itemagre)
+        print("--Item Añadido--")
+    else:
+        print("--ERROR - No se pudo añadir el item--")
+
+def eliminar_item(self, itemelim:ItemCarrito):
+    if type(itemelim) == ItemCarrito and itemelim in self.item:
+        self.item.remove(itemelim)
+        print("--Item Eliminado--")
+    else:
+        print("--ERROR - No se pudo eliminar el item--")
+
+def calcular_total(self):
+    total_compra = 0
+    for i in self.item:
+        total_compra += (i.cantidad * i.precio_unitario)
+
+    return total_compra
+
+def finalizar(self):
+    self.estado = estadocarrito.Finalizado
+
+def cancelar(self):
+    self.estado = estadocarrito.Cancelado
