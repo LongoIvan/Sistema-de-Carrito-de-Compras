@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request
 from werkzeug.security import generate_password_hash
-
 from backend.src.database.database import execute_query, fetch_all
 
 usuarios_bp = Blueprint("usuarios", __name__)
@@ -55,7 +54,8 @@ def mostrar_rol(id):
 
 
 #--Modifica Valores--
-@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
+@usuarios_bp.route("/usuario/<int:id>/nombre", methods=["PATCH"])
+#@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
 def modificar_nombre(id):
     datos = request.get_json(silent=True)
 
@@ -83,9 +83,10 @@ def modificar_nombre(id):
         return jsonify({"error": "Usuario no encontrado"}), 404
 
     return jsonify({"mensaje": "Nombre actualizado", "nombre": nuevoNombre}), 200
-    
 
-@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
+    
+@usuarios_bp.route("/usuario/<int:id>/mail", methods=["PATCH"])
+#@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
 def modificar_mail(id):
     datos = request.get_json(silent=True)
 
@@ -125,9 +126,8 @@ def modificar_mail(id):
 
     return jsonify({"mensaje": "Mail actualizado", "mail": nuevoMail}), 200
 
-from werkzeug.security import generate_password_hash
-
-@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
+@usuarios_bp.route("/usuario/<int:id>/contrasenia", methods=["PATCH"])
+#@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
 def modificar_contrasenia(id):
     datos = request.get_json(silent=True)
 
@@ -250,4 +250,3 @@ def eliminar_usuario(id):
         return jsonify({"error": "Usuario no encontrado"}), 404
 
     return jsonify({"mensaje": "Usuario eliminado correctamente"}), 200
-

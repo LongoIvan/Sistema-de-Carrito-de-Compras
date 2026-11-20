@@ -15,4 +15,3 @@ class Producto:
         self.fecha = date.today()
         self.activo = True
         self.descripcion = descripcion
-
