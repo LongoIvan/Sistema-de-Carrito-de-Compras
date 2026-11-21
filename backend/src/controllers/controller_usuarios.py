@@ -6,6 +6,21 @@ usuarios_bp = Blueprint("usuarios", __name__)
 
 
 
+@usuarios_bp.route("/usuario/<int:id>/completo", methods=["GET"])
+def mostrar_usuario_completo(id):
+    consulta = """
+        SELECT idusuario, nombre, mail, rol
+        FROM usuario
+        WHERE idusuario = %s
+    """
+
+    usuarios = fetch_all(consulta, (id,))
+
+    if not usuarios:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    return jsonify(usuarios[0]), 200
+
 @usuarios_bp.route("/usuario/<int:id>", methods=["GET"])
 def mostrar_idusuario(id):
     consulta = "SELECT idusuario FROM usuario"

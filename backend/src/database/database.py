@@ -78,13 +78,13 @@ def initialize_database(database_url):
                     cursor.execute(statement)
 
 
-def fetch_all(query):
+def fetch_all(query, params=None):
     from flask import current_app
 
     with closing(get_connection(current_app.config["DATABASE_URL"])) as connection:
         with connection:
             with connection.cursor() as cursor:
-                cursor.execute(query)
+                cursor.execute(query, params)
                 return [dict(row) for row in cursor.fetchall()]
 
 def execute_query(query, params):
