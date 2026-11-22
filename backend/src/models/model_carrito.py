@@ -1,6 +1,6 @@
 from datetime import date
 from enum import Enum
-from model_item_carrito import ItemCarrito
+from backend.src.models.model_item_carrito import ItemCarrito
 
 class estadocarrito(Enum):
     Pendiente = "Pendiente"

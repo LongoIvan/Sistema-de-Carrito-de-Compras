@@ -1,8 +1,8 @@
 from flask import Flask
 
 from backend.config import Config
-# from backend.src.controllers.controller_carrito import carritos_bp
-# from backend.src.controllers.controller_item_carrito import items_carrito_bp
+from backend.src.controllers.controller_carrito import carritos_bp
+from backend.src.controllers.controller_item_carrito import items_carrito_bp
 from backend.src.controllers.controller_productos import productos_bp
 from backend.src.controllers.controller_usuarios import usuarios_bp
 from backend.src.database.database import initialize_database
@@ -22,8 +22,8 @@ def create_app(test_config=None):
 
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(productos_bp)
-    # app.register_blueprint(carritos_bp)
-    # app.register_blueprint(items_carrito_bp)
+    app.register_blueprint(carritos_bp)
+    app.register_blueprint(items_carrito_bp)
 
     return app
 
