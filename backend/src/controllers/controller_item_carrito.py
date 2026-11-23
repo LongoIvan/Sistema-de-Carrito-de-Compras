@@ -67,8 +67,154 @@ def agregar_item(idcarrito):
         "precio_unitario": float(producto["precio"])
     }), 201
 
+@items_carrito_bp.route("/api/carritos/<int:idcarrito>/items/<int:iditem>/aumentar", methods=["PATCH"])
+def aumentar_cantidad(idcarrito, iditem):
+    datos = request.get_json(silent=True)
 
+    if not isinstance(datos, dict):
+        return jsonify({"error": "Datos invalidos"}), 400
 
+    cantidad = datos.get("cantidad")
+
+    if type(cantidad) is not int or cantidad <= 0:
+        return jsonify({"error": "Cantidad invalida"}), 400
+
+    carritos = fetch_all("SELECT * FROM carrito")
+
+    carrito = next(
+        (c for c in carritos if c["idcarrito"] == idcarrito),
+        None
+    )
+
+    if carrito is None:
+        return jsonify({"error": "Carrito no encontrado"}), 404
+
+    if carrito["estado"] != "Pendiente":
+        return jsonify({"error": "El carrito no esta pendiente"}), 400
+
+    items = fetch_all("SELECT * FROM item_carrito")
+
+    item = next(
+        (i for i in items
+         if i["id_item_carrito"] == iditem
+         and i["idcarrito"] == idcarrito),
+        None
+    )
+
+    if item is None:
+        return jsonify({"error": "Item no encontrado en este carrito"}), 404
+
+    productos = fetch_all("SELECT * FROM producto")
+
+    producto = next(
+        (p for p in productos
+         if p["idproducto"] == item["id_item_producto"]),
+        None
+    )
+
+    if producto is None:
+        return jsonify({"error": "Producto no encontrado"}), 404
+
+    nueva_cantidad = item["cantidad"] + cantidad
+
+    if nueva_cantidad > producto["stock"]:
+        return jsonify({"error": "Stock insuficiente"}), 400
+
+    consulta = """
+        UPDATE item_carrito
+        SET cantidad = %s
+        WHERE id_item_carrito = %s
+          AND idcarrito = %s
+    """
+
+    execute_query(consulta, (nueva_cantidad, iditem, idcarrito))
+
+    return jsonify({
+        "mensaje": "Cantidad aumentada correctamente",
+        "idcarrito": idcarrito,
+        "id_item_carrito": iditem,
+        "cantidad_anterior": item["cantidad"],
+        "cantidad_agregada": cantidad,
+        "cantidad_actual": nueva_cantidad
+    }), 200
+
+@items_carrito_bp.route("/api/carritos/<int:idcarrito>/items/<int:iditem>/disminuir", methods=["PATCH"])
+def disminuir_cantidad(idcarrito, iditem):
+    datos = request.get_json(silent=True)
+
+    if not isinstance(datos, dict):
+        return jsonify({"error": "Datos invalidos"}), 400
+
+    cantidad = datos.get("cantidad")
+
+    if type(cantidad) is not int or cantidad <= 0:
+        return jsonify({"error": "Cantidad invalida"}), 400
+
+    carritos = fetch_all("SELECT * FROM carrito")
+
+    carrito = next(
+        (c for c in carritos if c["idcarrito"] == idcarrito),
+        None
+    )
+
+    if carrito is None:
+        return jsonify({"error": "Carrito no encontrado"}), 404
+
+    if carrito["estado"] != "Pendiente":
+        return jsonify({"error": "El carrito no esta pendiente"}), 400
+
+    items = fetch_all("SELECT * FROM item_carrito")
+
+    item = next(
+        (i for i in items
+         if i["id_item_carrito"] == iditem
+         and i["idcarrito"] == idcarrito),
+        None
+    )
+
+    if item is None:
+        return jsonify({"error": "Item no encontrado en este carrito"}), 404
+
+    nueva_cantidad = item["cantidad"] - cantidad
+
+    if nueva_cantidad < 0:
+        return jsonify({
+            "error": "No podes disminuir mas unidades de las existentes"
+        }), 400
+
+    if nueva_cantidad == 0:
+        consulta = """
+            DELETE FROM item_carrito
+            WHERE id_item_carrito = %s
+              AND idcarrito = %s
+        """
+
+        execute_query(consulta, (iditem, idcarrito))
+
+        return jsonify({
+            "mensaje": "Item eliminado del carrito",
+            "idcarrito": idcarrito,
+            "id_item_carrito": iditem,
+            "cantidad_eliminada": cantidad
+        }), 200
+
+    consulta = """
+        UPDATE item_carrito
+        SET cantidad = %s
+        WHERE id_item_carrito = %s
+          AND idcarrito = %s
+    """
+
+    execute_query(consulta, (nueva_cantidad, iditem, idcarrito))
+
+    return jsonify({
+        "mensaje": "Cantidad disminuida correctamente",
+        "idcarrito": idcarrito,
+        "id_item_carrito": iditem,
+        "cantidad_anterior": item["cantidad"],
+        "cantidad_disminuida": cantidad,
+        "cantidad_actual": nueva_cantidad
+    }), 200
 
 # #Devolver datos
 

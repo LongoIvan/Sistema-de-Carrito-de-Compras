@@ -1,9 +1,20 @@
-from backend.src.models.model_carrito import Carrito
-from backend.src.models.model_item_carrito import ItemCarrito
-from backend.src.models.model_carrito import estadocarrito
+# Librerías de Python
+from contextlib import closing
 
-from flask import Blueprint, jsonify, request
-from backend.src.database.database import fetch_all, execute_query, execute_query_returning
+# Flask
+from flask import Blueprint, jsonify, request, current_app
+
+# Modelos
+from backend.src.models.model_carrito import Carrito, estadocarrito
+from backend.src.models.model_item_carrito import ItemCarrito
+
+# Base de datos
+from backend.src.database.database import (
+    fetch_all,
+    execute_query,
+    execute_query_returning,
+    get_connection
+)
 
 carritos_bp = Blueprint("carritos", __name__)
 
