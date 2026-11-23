@@ -66,34 +66,174 @@ def consultar_carrito(id):
 
     return jsonify(carrito), 200
 
+
 @carritos_bp.route("/api/carritos/<int:id>/finalizar", methods=["PATCH"])
 def finalizar_carrito(id):
-    carritos = fetch_all("SELECT * FROM carrito")
 
-    carrito = next(
-        (carrito for carrito in carritos if carrito["idcarrito"] == id),
-        None
-    )
+    with closing(get_connection(current_app.config["DATABASE_URL"])) as connection:
+        with connection:
+            with connection.cursor() as cursor:
 
-    if carrito is None:
-        return jsonify({"error": "Carrito no encontrado"}), 404
+                # 1. Buscar y bloquear el carrito
+                cursor.execute(
+                    """
+                    SELECT estado
+                    FROM carrito
+                    WHERE idcarrito = %s
+                    FOR UPDATE
+                    """,
+                    (id,)
+                )
 
-    if carrito["estado"] != "Pendiente":
-        return jsonify({"error": "El carrito no esta pendiente"}), 400
+                carrito = cursor.fetchone()
 
-    consulta = """
-        UPDATE carrito
-        SET estado = %s
-        WHERE idcarrito = %s
-    """
+                if carrito is None:
+                    return jsonify({"error": "Carrito no encontrado"}), 404
 
-    execute_query(consulta, ("Finalizado", id))
+                if carrito["estado"] != "Pendiente":
+                    return jsonify({"error": "El carrito no esta pendiente"}), 400
+
+                # 2. Obtener los productos del carrito
+                cursor.execute(
+                    """
+                    SELECT
+                        i.id_item_carrito,
+                        i.id_item_producto AS idproducto,
+                        p.nombre,
+                        i.cantidad
+                    FROM item_carrito AS i
+                    JOIN producto AS p
+                        ON p.idproducto = i.id_item_producto
+                    WHERE i.idcarrito = %s
+                    ORDER BY i.id_item_producto, i.id_item_carrito
+                    """,
+                    (id,)
+                )
+
+                items = cursor.fetchall()
+
+                if not items:
+                    return jsonify({"error": "El carrito esta vacio"}), 400
+
+                # 3. Agrupar cantidades por producto
+                cantidades = {}
+
+                for item in items:
+                    idproducto = item["idproducto"]
+
+                    if idproducto not in cantidades:
+                        cantidades[idproducto] = 0
+
+                    cantidades[idproducto] += item["cantidad"]
+
+                # 4. Consultar y bloquear el stock actual
+                stocks = {}
+
+                for idproducto in sorted(cantidades):
+                    cursor.execute(
+                        """
+                        SELECT stock
+                        FROM producto
+                        WHERE idproducto = %s
+                        FOR UPDATE
+                        """,
+                        (idproducto,)
+                    )
+
+                    producto = cursor.fetchone()
+                    stocks[idproducto] = producto["stock"]
+
+                # 5. Detectar productos con stock insuficiente
+                productos_corregidos = []
+
+                for idproducto, cantidad_solicitada in cantidades.items():
+
+                    stock_disponible = stocks[idproducto]
+
+                    if cantidad_solicitada <= stock_disponible:
+                        continue
+
+                    # Distribuir el stock disponible entre los items
+                    restante = stock_disponible
+
+                    for item in items:
+
+                        if item["idproducto"] != idproducto:
+                            continue
+
+                        nueva_cantidad = min(item["cantidad"], restante)
+                        restante -= nueva_cantidad
+
+                        if nueva_cantidad == 0:
+                            cursor.execute(
+                                """
+                                DELETE FROM item_carrito
+                                WHERE id_item_carrito = %s
+                                """,
+                                (item["id_item_carrito"],)
+                            )
+                        else:
+                            cursor.execute(
+                                """
+                                UPDATE item_carrito
+                                SET cantidad = %s
+                                WHERE id_item_carrito = %s
+                                """,
+                                (nueva_cantidad, item["id_item_carrito"])
+                            )
+
+                    productos_corregidos.append({
+                        "idproducto": idproducto,
+                        "nombre": next(
+                            item["nombre"]
+                            for item in items
+                            if item["idproducto"] == idproducto
+                        ),
+                        "cantidad_solicitada": cantidad_solicitada,
+                        "cantidad_disponible": stock_disponible,
+                        "accion": (
+                            "eliminado"
+                            if stock_disponible == 0
+                            else "cantidad_reducida"
+                        )
+                    })
+
+                # 6. Si hubo correcciones, rechazar la compra
+                if productos_corregidos:
+                    return jsonify({
+                        "mensaje": "Compra rechazada por stock insuficiente",
+                        "idcarrito": id,
+                        "estado": "Pendiente",
+                        "productos_corregidos": productos_corregidos
+                    }), 409
+
+                # 7. Si todo tiene stock, descontar los productos
+                for idproducto, cantidad in cantidades.items():
+                    cursor.execute(
+                        """
+                        UPDATE producto
+                        SET stock = stock - %s
+                        WHERE idproducto = %s
+                        """,
+                        (cantidad, idproducto)
+                    )
+
+                # 8. Finalizar el carrito
+                cursor.execute(
+                    """
+                    UPDATE carrito
+                    SET estado = %s
+                    WHERE idcarrito = %s
+                    """,
+                    ("Finalizado", id)
+                )
 
     return jsonify({
-        "mensaje": "Carrito finalizado correctamente",
+        "mensaje": "Compra finalizada correctamente",
         "idcarrito": id,
         "estado": "Finalizado"
     }), 200
+
 
 @carritos_bp.route("/api/carritos/<int:id>/cancelar", methods=["PATCH"])
 def cancelar_carrito(id):
