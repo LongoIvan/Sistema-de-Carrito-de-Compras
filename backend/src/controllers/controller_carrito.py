@@ -67,6 +67,7 @@ def consultar_carrito(id):
     return jsonify(carrito), 200
 
 
+
 @carritos_bp.route("/api/carritos/<int:id>/finalizar", methods=["PATCH"])
 def finalizar_carrito(id):
 
@@ -207,15 +208,17 @@ def finalizar_carrito(id):
                         "productos_corregidos": productos_corregidos
                     }), 409
 
-                # 7. Si todo tiene stock, descontar los productos
+                # 7. Descontar stock y actualizar estado activo
                 for idproducto, cantidad in cantidades.items():
                     cursor.execute(
                         """
                         UPDATE producto
-                        SET stock = stock - %s
+                        SET
+                            stock = stock - %s,
+                            activo = (stock - %s) > 0
                         WHERE idproducto = %s
                         """,
-                        (cantidad, idproducto)
+                        (cantidad, cantidad, idproducto)
                     )
 
                 # 8. Finalizar el carrito
@@ -235,34 +238,53 @@ def finalizar_carrito(id):
     }), 200
 
 
+
+
 @carritos_bp.route("/api/carritos/<int:id>/cancelar", methods=["PATCH"])
 def cancelar_carrito(id):
-    carritos = fetch_all("SELECT * FROM carrito")
 
-    carrito = next(
-        (carrito for carrito in carritos if carrito["idcarrito"] == id),
-        None
-    )
+    with closing(get_connection(current_app.config["DATABASE_URL"])) as connection:
+        with connection:
+            with connection.cursor() as cursor:
 
-    if carrito is None:
-        return jsonify({"error": "Carrito no encontrado"}), 404
+                # 1. Buscar y bloquear el carrito
+                cursor.execute(
+                    """
+                    SELECT estado
+                    FROM carrito
+                    WHERE idcarrito = %s
+                    FOR UPDATE
+                    """,
+                    (id,)
+                )
 
-    if carrito["estado"] != "Pendiente":
-        return jsonify({"error": "El carrito no esta pendiente"}), 400
+                carrito = cursor.fetchone()
 
-    consulta = """
-        UPDATE carrito
-        SET estado = %s
-        WHERE idcarrito = %s
-    """
+                if carrito is None:
+                    return jsonify({"error": "Carrito no encontrado"}), 404
 
-    execute_query(consulta, ("Cancelado", id))
+                # 2. Verificar que esté pendiente
+                if carrito["estado"] != "Pendiente":
+                    return jsonify({
+                        "error": "El carrito no esta pendiente"
+                    }), 400
+
+                # 3. Cancelar el carrito
+                cursor.execute(
+                    """
+                    UPDATE carrito
+                    SET estado = %s
+                    WHERE idcarrito = %s
+                    """,
+                    ("Cancelado", id)
+                )
 
     return jsonify({
         "mensaje": "Carrito cancelado correctamente",
         "idcarrito": id,
         "estado": "Cancelado"
     }), 200
+
 
 
 @carritos_bp.route("/api/carritos/<int:id>/total", methods=["GET"])
