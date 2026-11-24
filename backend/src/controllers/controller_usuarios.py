@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from backend.src.database.database import execute_query, fetch_all
 from psycopg2.errors import UniqueViolation, ForeignKeyViolation, RestrictViolation
 
@@ -291,4 +291,52 @@ def eliminar_usuario(id):
 
     return jsonify({
         "mensaje": "Usuario eliminado correctamente"
+    }), 200
+
+@usuarios_bp.route("/api/usuario/login", methods=["POST"])
+def login_usuario():
+
+    datos = request.get_json(silent=True)
+
+    if not isinstance(datos, dict):
+        return jsonify({"error": "JSON invalido"}), 400
+
+    campos = ["mail", "contrasenia"]
+
+    for campo in campos:
+        if campo not in datos:
+            return jsonify({"error": f"Falta el campo {campo}"}), 400
+
+    mail = datos["mail"]
+    contrasenia = datos["contrasenia"]
+
+    if type(mail) is not str or type(contrasenia) is not str:
+        return jsonify({"error": "Credenciales invalidas"}), 400
+
+    mail = mail.strip().lower()
+
+    if not mail or not contrasenia:
+        return jsonify({"error": "Credenciales invalidas"}), 400
+        consulta = """
+        SELECT idusuario, nombre, mail, contrasenia, rol
+        FROM usuario
+        WHERE mail = %s
+    """
+
+    resultado = fetch_all(consulta, (mail,))
+
+    if not resultado:
+        return jsonify({"error": "Credenciales incorrectas"}), 401
+
+    usuario = resultado[0]
+
+    if not check_password_hash(usuario["contrasenia"], contrasenia):
+        return jsonify({"error": "Credenciales incorrectas"}), 401
+
+    return jsonify({
+        "mensaje": "Inicio de sesion correcto",
+        "idusuario": usuario["idusuario"],
+        "nombre": usuario["nombre"],
+        "mail": usuario["mail"],
+        "rol": usuario["rol"]
     }), 200
