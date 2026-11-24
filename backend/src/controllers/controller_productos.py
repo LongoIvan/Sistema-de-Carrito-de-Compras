@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 import math
 from backend.src.database.database import fetch_all, execute_query
 from backend.src.models.model_productos import Categoria
+from psycopg2.errors import ForeignKeyViolation, RestrictViolation
 
 productos_bp = Blueprint("productos", __name__)
 
@@ -406,7 +407,12 @@ def eliminar_producto(id):
 
     consulta = "DELETE FROM producto WHERE idproducto = %s"
 
-    filas = execute_query(consulta, (id,))
+    try:
+        filas = execute_query(consulta, (id,))
+    except (ForeignKeyViolation, RestrictViolation):
+        return jsonify({
+            "error": "No se puede eliminar un producto asociado a carritos"
+        }), 409
 
     if filas == 0:
         return jsonify({"error": "Producto no encontrado"}), 404
