@@ -39,6 +39,10 @@ Desde la raíz del repositorio:
             flask --app backend.app run --debug
    ```
 
+
+## Levantar frontend
+      pip install streamlit requests  
+      streamlit run frontend/app.py   
 ## Endpoints disponibles
 
 Todos los endpoints devuelven una lista JSON; si aún no hay registros, la
