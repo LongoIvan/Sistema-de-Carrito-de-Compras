@@ -127,13 +127,13 @@ def finalizar_carrito(id):
 
                     cantidades[idproducto] += item["cantidad"]
 
-                # 4. Consultar y bloquear el stock actual
-                stocks = {}
+                # 4. Consultar y bloquear los productos
+                productos = {}
 
                 for idproducto in sorted(cantidades):
                     cursor.execute(
                         """
-                        SELECT stock
+                        SELECT nombre, stock, activo
                         FROM producto
                         WHERE idproducto = %s
                         FOR UPDATE
@@ -142,19 +142,44 @@ def finalizar_carrito(id):
                     )
 
                     producto = cursor.fetchone()
-                    stocks[idproducto] = producto["stock"]
+                    productos[idproducto] = producto
 
-                # 5. Detectar productos con stock insuficiente
+                # 5. Detectar productos desactivados o sin stock suficiente
                 productos_corregidos = []
 
                 for idproducto, cantidad_solicitada in cantidades.items():
 
-                    stock_disponible = stocks[idproducto]
+                    producto = productos[idproducto]
+
+                    # 5.1. Eliminar productos desactivados
+                    if not producto["activo"]:
+
+                        cursor.execute(
+                            """
+                            DELETE FROM item_carrito
+                            WHERE idcarrito = %s
+                              AND id_item_producto = %s
+                            """,
+                            (id, idproducto)
+                        )
+
+                        productos_corregidos.append({
+                            "idproducto": idproducto,
+                            "nombre": producto["nombre"],
+                            "cantidad_solicitada": cantidad_solicitada,
+                            "cantidad_disponible": 0,
+                            "accion": "eliminado",
+                            "motivo": "Producto desactivado"
+                        })
+
+                        continue
+
+                    # 5.2. Comprobar el stock disponible
+                    stock_disponible = producto["stock"]
 
                     if cantidad_solicitada <= stock_disponible:
                         continue
 
-                    # Distribuir el stock disponible entre los items
                     restante = stock_disponible
 
                     for item in items:
@@ -185,24 +210,21 @@ def finalizar_carrito(id):
 
                     productos_corregidos.append({
                         "idproducto": idproducto,
-                        "nombre": next(
-                            item["nombre"]
-                            for item in items
-                            if item["idproducto"] == idproducto
-                        ),
+                        "nombre": producto["nombre"],
                         "cantidad_solicitada": cantidad_solicitada,
                         "cantidad_disponible": stock_disponible,
                         "accion": (
                             "eliminado"
                             if stock_disponible == 0
                             else "cantidad_reducida"
-                        )
+                        ),
+                        "motivo": "Stock insuficiente"
                     })
 
                 # 6. Si hubo correcciones, rechazar la compra
                 if productos_corregidos:
                     return jsonify({
-                        "mensaje": "Compra rechazada por stock insuficiente",
+                        "mensaje": "Compra rechazada por productos no disponibles",
                         "idcarrito": id,
                         "estado": "Pendiente",
                         "productos_corregidos": productos_corregidos

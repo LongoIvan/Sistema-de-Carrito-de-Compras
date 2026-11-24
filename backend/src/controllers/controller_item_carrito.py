@@ -62,7 +62,7 @@ def agregar_item(idcarrito):
                 # 2. Consultar el producto
                 cursor.execute(
                     """
-                    SELECT idproducto, nombre, precio, stock
+                    SELECT idproducto, nombre, precio, stock, activo
                     FROM producto
                     WHERE idproducto = %s
                     """,
@@ -73,6 +73,12 @@ def agregar_item(idcarrito):
 
                 if producto is None:
                     return jsonify({"error": "Producto no encontrado"}), 404
+
+                # Validar que el producto este activo
+                if not producto["activo"]:
+                    return jsonify({
+                        "error": "El producto esta desactivado"
+                    }), 400
 
                 # 3. Buscar las unidades existentes en el carrito
                 cursor.execute(
@@ -167,9 +173,6 @@ def agregar_item(idcarrito):
     }), codigo_estado
 
 
-
-
-
 @items_carrito_bp.route("/api/carritos/<int:idcarrito>/items/<int:iditem>/aumentar", methods=["PATCH"])
 def aumentar_cantidad(idcarrito, iditem):
     datos = request.get_json(silent=True)
@@ -220,10 +223,10 @@ def aumentar_cantidad(idcarrito, iditem):
                         "error": "Item no encontrado en este carrito"
                     }), 404
 
-                # 3. Consultar el stock del producto
+                # 3. Consultar el stock y estado del producto
                 cursor.execute(
                     """
-                    SELECT nombre, stock
+                    SELECT nombre, stock, activo
                     FROM producto
                     WHERE idproducto = %s
                     """,
@@ -234,6 +237,11 @@ def aumentar_cantidad(idcarrito, iditem):
 
                 if producto is None:
                     return jsonify({"error": "Producto no encontrado"}), 404
+
+                if not producto["activo"]:
+                    return jsonify({
+                        "error": "El producto esta desactivado"
+                    }), 400
 
                 # 4. Sumar todas las unidades de ese producto
                 cursor.execute(
