@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from backend.src.database.database import execute_query, fetch_all
 from psycopg2.errors import UniqueViolation, ForeignKeyViolation, RestrictViolation
@@ -332,6 +332,9 @@ def login_usuario():
 
     if not check_password_hash(usuario["contrasenia"], contrasenia):
         return jsonify({"error": "Credenciales incorrectas"}), 401
+    
+    session.clear()
+    session["idusuario"] = usuario["idusuario"]
 
     return jsonify({
         "mensaje": "Inicio de sesion correcto",
@@ -339,4 +342,35 @@ def login_usuario():
         "nombre": usuario["nombre"],
         "mail": usuario["mail"],
         "rol": usuario["rol"]
+    }), 200
+
+@usuarios_bp.route("/api/usuario/sesion", methods=["GET"])
+def consultar_sesion():
+
+    idusuario = session.get("idusuario")
+
+    if idusuario is None:
+        return jsonify({"error": "No hay una sesion activa"}), 401
+
+    consulta = """
+        SELECT idusuario, nombre, mail, rol
+        FROM usuario
+        WHERE idusuario = %s
+    """
+
+    resultado = fetch_all(consulta, (idusuario,))
+
+    if not resultado:
+        session.clear()
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    return jsonify(resultado[0]), 200
+
+@usuarios_bp.route("/api/usuario/logout", methods=["POST"])
+def logout_usuario():
+
+    session.clear()
+
+    return jsonify({
+        "mensaje": "Sesion cerrada correctamente"
     }), 200
