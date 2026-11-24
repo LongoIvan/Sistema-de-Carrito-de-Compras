@@ -20,7 +20,7 @@ def create_app(test_config=None):
 
     # initialize_database(database_url)
 
-    app.register_blueprint(usuarios_bp, url_prefix="/api")
+    app.register_blueprint(usuarios_bp)
     app.register_blueprint(productos_bp)
     app.register_blueprint(carritos_bp)
     app.register_blueprint(items_carrito_bp)
