@@ -7,7 +7,7 @@ from psycopg2.errors import UniqueViolation, ForeignKeyViolation, RestrictViolat
 usuarios_bp = Blueprint("usuarios", __name__)
 
 
-@usuarios_bp.route("/usuario/<int:id>/completo", methods=["GET"])
+@usuarios_bp.route("/api/usuario/<int:id>/completo", methods=["GET"])
 def mostrar_usuario_completo(id):
     consulta = """
         SELECT idusuario, nombre, mail, rol
@@ -23,7 +23,7 @@ def mostrar_usuario_completo(id):
     return jsonify(usuarios[0]), 200
 
 
-@usuarios_bp.route("/usuario/<int:id>", methods=["GET"])
+@usuarios_bp.route("/api/usuario/<int:id>", methods=["GET"])
 def mostrar_idusuario(id):
     consulta = """
         SELECT idusuario
@@ -38,7 +38,7 @@ def mostrar_idusuario(id):
 
     return jsonify(usuarios[0]), 200
 
-@usuarios_bp.route("/usuario/<int:id>/nombre", methods=["GET"])
+@usuarios_bp.route("/api/usuario/<int:id>/nombre", methods=["GET"])
 def mostrar_nombre(id):
     consulta = """
         SELECT nombre
@@ -54,7 +54,7 @@ def mostrar_nombre(id):
     return jsonify(usuarios[0]), 200
 
 
-@usuarios_bp.route("/usuario/<int:id>/mail", methods=["GET"])
+@usuarios_bp.route("/api/usuario/<int:id>/mail", methods=["GET"])
 def mostrar_mail(id):
     consulta = """
         SELECT mail
@@ -70,7 +70,7 @@ def mostrar_mail(id):
     return jsonify(usuarios[0]), 200
 
 
-@usuarios_bp.route("/usuario/<int:id>/rol", methods=["GET"])
+@usuarios_bp.route("/api/usuario/<int:id>/rol", methods=["GET"])
 def mostrar_rol(id):
     consulta = """
         SELECT rol
@@ -87,8 +87,8 @@ def mostrar_rol(id):
 
 
 #--Modifica Valores--
-@usuarios_bp.route("/usuario/<int:id>/nombre", methods=["PATCH"])
-#@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
+@usuarios_bp.route("/api/usuario/<int:id>/nombre", methods=["PATCH"])
+#@usuarios_bp.route("/api/usuario/<int:id>", methods=["PATCH"])
 def modificar_nombre(id):
     datos = request.get_json(silent=True)
 
@@ -118,7 +118,7 @@ def modificar_nombre(id):
     return jsonify({"mensaje": "Nombre actualizado", "nombre": nuevoNombre}), 200
 
     
-@usuarios_bp.route("/usuario/<int:id>/mail", methods=["PATCH"])
+@usuarios_bp.route("/api/usuario/<int:id>/mail", methods=["PATCH"])
 def modificar_mail(id):
     datos = request.get_json(silent=True)
 
@@ -163,8 +163,8 @@ def modificar_mail(id):
         "mail": nuevoMail
     }), 200
 
-@usuarios_bp.route("/usuario/<int:id>/contrasenia", methods=["PATCH"])
-#@usuarios_bp.route("/usuario/<int:id>", methods=["PATCH"])
+@usuarios_bp.route("/api/usuario/<int:id>/contrasenia", methods=["PATCH"])
+#@usuarios_bp.route("/api/usuario/<int:id>", methods=["PATCH"])
 def modificar_contrasenia(id):
     datos = request.get_json(silent=True)
 
@@ -199,7 +199,7 @@ def modificar_contrasenia(id):
 
     return jsonify({"mensaje": "Contraseña actualizada"}), 200
 
-@usuarios_bp.route("/usuario", methods=["POST"])
+@usuarios_bp.route("/api/usuario", methods=["POST"])
 def agregar_usuario():
     datos = request.get_json(silent=True)
 
@@ -273,7 +273,7 @@ def agregar_usuario():
         "mail": mail
     }), 201
 
-@usuarios_bp.route("/usuario/<int:id>", methods=["DELETE"])
+@usuarios_bp.route("/api/usuario/<int:id>", methods=["DELETE"])
 def eliminar_usuario(id):
 
     consulta = "DELETE FROM usuario WHERE idusuario = %s"
