@@ -317,7 +317,7 @@ def login_usuario():
 
     if not mail or not contrasenia:
         return jsonify({"error": "Credenciales invalidas"}), 400
-        consulta = """
+    consulta = """
         SELECT idusuario, nombre, mail, contrasenia, rol
         FROM usuario
         WHERE mail = %s
