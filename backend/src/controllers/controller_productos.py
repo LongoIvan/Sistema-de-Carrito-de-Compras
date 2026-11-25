@@ -29,72 +29,68 @@ def listar_productos():
 
 @productos_bp.route("/api/productos/<int:id>/nombre", methods=["GET"])
 def mostrar_nombre(id):
-    consulta = "SELECT idproducto, nombre FROM producto"
-    productos = fetch_all(consulta)
+    consulta = "SELECT nombre FROM producto WHERE idproducto = %s"
+    productos = fetch_all(consulta, (id,))
 
-    for producto in productos:
-        if producto["idproducto"] == id:
-            return jsonify({"nombre": producto["nombre"]}), 200
+    if not productos:
+        return jsonify({"error": "Producto no encontrado"}), 404
 
-    return jsonify({"error": "Producto no encontrado"}), 404
+    return jsonify({"nombre": productos[0]["nombre"]}), 200
 
 @productos_bp.route("/api/productos/<int:id>/precio", methods=["GET"])
 def mostrar_precio(id):
-    consulta = "SELECT idproducto, precio FROM producto"
-    productos = fetch_all(consulta)
+    consulta = "SELECT precio FROM producto WHERE idproducto = %s"
+    productos = fetch_all(consulta, (id,))
 
-    for producto in productos:
-        if producto["idproducto"] == id:
-            return jsonify({"precio": float(producto["precio"])}), 200
+    if not productos:
+        return jsonify({"error": "Producto no encontrado"}), 404
 
-    return jsonify({"error": "Producto no encontrado"}), 404
+    return jsonify({"precio": float(productos[0]["precio"])}), 200
 
 @productos_bp.route("/api/productos/<int:id>/stock", methods=["GET"])
 def mostrar_stock(id):
-    consulta = "SELECT idproducto, stock FROM producto"
-    productos = fetch_all(consulta)
+    consulta = "SELECT stock FROM producto WHERE idproducto = %s"
+    productos = fetch_all(consulta, (id,))
 
-    for producto in productos:
-        if producto["idproducto"] == id:
-            return jsonify({"stock": producto["stock"]}), 200
+    if not productos:
+        return jsonify({"error": "Producto no encontrado"}), 404
 
-    return jsonify({"error": "Producto no encontrado"}), 404
+    return jsonify({"stock": productos[0]["stock"]}), 200
 
 @productos_bp.route("/api/productos/<int:id>/categoria", methods=["GET"])
-def mostrar_categoria (id):
-    consulta = "SELECT idproducto, categoria FROM producto"
-    productos = fetch_all(consulta)
+def mostrar_categoria(id):
+    consulta = "SELECT categoria FROM producto WHERE idproducto = %s"
+    productos = fetch_all(consulta, (id,))
 
-    for producto in productos:
-        if producto["idproducto"] == id:
-            return jsonify({"categoria": producto["categoria"]}), 200
+    if not productos:
+        return jsonify({"error": "Producto no encontrado"}), 404
 
-    return jsonify({"error": "Producto no encontrado"}), 404
+    return jsonify({"categoria": productos[0]["categoria"]}), 200
 
 @productos_bp.route("/api/productos/<int:id>/fecha", methods=["GET"])
 def mostrar_fecha(id):
-    consulta = "SELECT idproducto, fecha FROM producto"
-    productos = fetch_all(consulta)
+    consulta = "SELECT fecha FROM producto WHERE idproducto = %s"
+    productos = fetch_all(consulta, (id,))
 
-    for producto in productos:
-        if producto["idproducto"] == id:
-            if producto["fecha"] is not None:
-                return jsonify({"fecha": producto["fecha"].isoformat()}), 200
+    if not productos:
+        return jsonify({"error": "Producto no encontrado"}), 404
 
-            return jsonify({"fecha": None}), 200
+    fecha = productos[0]["fecha"]
 
-    return jsonify({"error": "Producto no encontrado"}), 404
+    if fecha is not None:
+        return jsonify({"fecha": fecha.isoformat()}), 200
+
+    return jsonify({"fecha": None}), 200
 
 @productos_bp.route("/api/productos/<int:id>/descripcion", methods=["GET"])
-def mostrar_descripcion (id):
-    consulta = "SELECT idproducto, descripcion FROM producto"
-    productos = fetch_all(consulta)
+def mostrar_descripcion(id):
+    consulta = "SELECT descripcion FROM producto WHERE idproducto = %s"
+    productos = fetch_all(consulta, (id,))
 
-    for producto in productos:
-        if producto["idproducto"] == id:
-            return jsonify({"descripcion": producto["descripcion"]}), 200
+    if not productos:
+        return jsonify({"error": "Producto no encontrado"}), 404
 
-    return jsonify({"error": "Producto no encontrado"}), 404
+    return jsonify({"descripcion": productos[0]["descripcion"]}), 200
 
 
 @productos_bp.route("/api/productos", methods=["POST"])
@@ -123,7 +119,7 @@ def agregar_productos():
     nombre = nombre.strip()
 
     # Validar precio
-    if type(precio) not in (int, float) or not math.isfinite(precio) or precio < 0:
+    if type(precio) not in (int, float) or not math.isfinite(precio) or precio <= 0:
         return jsonify({"error": "Precio invalido"}), 400
 
     # Validar stock
@@ -186,8 +182,8 @@ def modificar_precio(id):
     if type(nuevoPrecio) not in (int, float):
         return jsonify({"error": "El precio debe ser un numero"}), 400
 
-    if not math.isfinite(nuevoPrecio) or nuevoPrecio < 0:
-        return jsonify({"error": "El precio debe ser un numero finito y no negativo"}), 400
+    if not math.isfinite(nuevoPrecio) or nuevoPrecio <= 0:
+        return jsonify({"error": "El precio debe ser un numero finito y mayor a 0"}), 400
 
     consulta = "UPDATE producto SET precio = %s WHERE idproducto = %s"
 
