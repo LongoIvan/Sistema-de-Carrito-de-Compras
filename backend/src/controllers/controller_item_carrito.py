@@ -4,18 +4,10 @@ from contextlib import closing
 # Flask
 from flask import Blueprint, jsonify, request, current_app
 
-# Modelos
-from backend.src.models.model_item_carrito import ItemCarrito
-
 # Base de datos
-from backend.src.database.database import (
-    fetch_all,
-    execute_query,
-    get_connection
-)
+from backend.src.database.database import get_connection
+
 items_carrito_bp = Blueprint("items_carrito", __name__)
-
-
 
 @items_carrito_bp.route("/api/carritos/<int:idcarrito>/items", methods=["POST"])
 def agregar_item(idcarrito):
@@ -79,23 +71,22 @@ def agregar_item(idcarrito):
                         "error": "El producto esta desactivado"
                     }), 400
 
-                # 3. Buscar las unidades existentes en el carrito
+                # 3. Buscar el producto existente en el carrito
                 cursor.execute(
                     """
-                    SELECT id_item_carrito, cantidad
+                    SELECT id_item_carrito, cantidad, precio_unitario
                     FROM item_carrito
                     WHERE idcarrito = %s
-                      AND id_item_producto = %s
-                    ORDER BY id_item_carrito
+                    AND id_item_producto = %s
                     """,
                     (idcarrito, idproducto)
-                )
+                    )
 
-                items_existentes = cursor.fetchall()
+                item_existente = cursor.fetchone()
 
-                cantidad_en_carrito = sum(
-                    item["cantidad"] for item in items_existentes
-                )
+                cantidad_en_carrito = (
+                    item_existente["cantidad"] if item_existente else 0
+                    )
 
                 cantidad_total = cantidad_en_carrito + cantidad
 
@@ -111,8 +102,9 @@ def agregar_item(idcarrito):
                     }), 400
 
                 # 5. Si ya existe, actualizar el primer item
-                if items_existentes:
-                    iditem = items_existentes[0]["id_item_carrito"]
+                if item_existente:
+                    iditem = item_existente["id_item_carrito"]
+                    precio_unitario = item_existente["precio_unitario"]
 
                     cursor.execute(
                         """
@@ -124,22 +116,13 @@ def agregar_item(idcarrito):
                         (cantidad_total, iditem, idcarrito)
                     )
 
-                    # Eliminar posibles registros duplicados anteriores
-                    cursor.execute(
-                        """
-                        DELETE FROM item_carrito
-                        WHERE idcarrito = %s
-                          AND id_item_producto = %s
-                          AND id_item_carrito <> %s
-                        """,
-                        (idcarrito, idproducto, iditem)
-                    )
-
                     mensaje = "Cantidad del producto actualizada correctamente"
                     codigo_estado = 200
 
                 # 6. Si no existe, crear un nuevo item
                 else:
+                    precio_unitario = producto["precio"]
+
                     cursor.execute(
                         """
                         INSERT INTO item_carrito
@@ -151,7 +134,7 @@ def agregar_item(idcarrito):
                             idcarrito,
                             idproducto,
                             cantidad,
-                            producto["precio"]
+                            precio_unitario
                         )
                     )
 
@@ -168,7 +151,7 @@ def agregar_item(idcarrito):
         "idproducto": idproducto,
         "cantidad_agregada": cantidad,
         "cantidad_total": cantidad_total,
-        "precio_unitario": float(producto["precio"])
+        "precio_unitario": float(precio_unitario)
     }), codigo_estado
 
 
@@ -207,7 +190,7 @@ def aumentar_cantidad(idcarrito, iditem):
                 # 2. Buscar el item que queremos modificar
                 cursor.execute(
                     """
-                    SELECT *
+                    SELECT id_item_producto, cantidad
                     FROM item_carrito
                     WHERE id_item_carrito = %s
                       AND idcarrito = %s
@@ -242,20 +225,8 @@ def aumentar_cantidad(idcarrito, iditem):
                         "error": "El producto esta desactivado"
                     }), 400
 
-                # 4. Sumar todas las unidades de ese producto
-                cursor.execute(
-                    """
-                    SELECT COALESCE(SUM(cantidad), 0) AS cantidad_en_carrito
-                    FROM item_carrito
-                    WHERE idcarrito = %s
-                      AND id_item_producto = %s
-                    """,
-                    (idcarrito, item["id_item_producto"])
-                )
-
-                resultado = cursor.fetchone()
-                cantidad_en_carrito = resultado["cantidad_en_carrito"]
-
+                # 4. Calcular la cantidad total del producto
+                cantidad_en_carrito = item["cantidad"]
                 cantidad_total = cantidad_en_carrito + cantidad
 
                 # 5. Comprobar el stock total solicitado
@@ -270,7 +241,7 @@ def aumentar_cantidad(idcarrito, iditem):
                     }), 400
 
                 # 6. Actualizar la cantidad del item
-                nueva_cantidad = item["cantidad"] + cantidad
+                nueva_cantidad = cantidad_total
 
                 cursor.execute(
                     """
@@ -291,9 +262,6 @@ def aumentar_cantidad(idcarrito, iditem):
         "cantidad_actual": nueva_cantidad,
         "cantidad_total_producto": cantidad_total
     }), 200
-
-
-
 
 @items_carrito_bp.route("/api/carritos/<int:idcarrito>/items/<int:iditem>/disminuir", methods=["PATCH"])
 def disminuir_cantidad(idcarrito, iditem):
@@ -456,43 +424,3 @@ def eliminar_item(idcarrito, iditem):
         "idproducto": item["id_item_producto"],
         "cantidad_eliminada": item["cantidad"]
     }), 200
-
-
-# #Devolver datos
-
-# def mostrar_id(item_carrito:ItemCarrito):
-#     return item_carrito.id_item_carrito
-
-# def mostrar_id_producto(item_carrito:ItemCarrito):
-#     return item_carrito.id_item_producto
-
-# def mostrar_cantidad(item_carrito:ItemCarrito):
-#     return item_carrito.cantidad
-
-# def mostar_precio(item_carrito:ItemCarrito):
-#     return item_carrito.precio_unitario
-
-# #Metodos
-
-# def modificar_cantidad(item_carrito:ItemCarrito):
-#     def aumentar(num:int):
-#         if num.isdigit():
-#             item_carrito.cantidad += num
-#         else:
-#             print("--ERROR - Valor Invalido--")
-#             return
-
-#     def disminuir(num:int):
-#         if num.isdigit():
-#             if num > item_carrito.cantidad:
-#                 item_carrito.cantidad = 1
-#             else:
-#                 item_carrito.cantidad -= num
-#         else:
-#             print("--ERROR - Valor Invalido--")
-#             return
-
-# def calcular_subtotal(item_carrito:ItemCarrito):
-#     sub_total = 0
-#     sub_total = item_carrito.cantidad * item_carrito.precio_unitario
-#     return sub_total
