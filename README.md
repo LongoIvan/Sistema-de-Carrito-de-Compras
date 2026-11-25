@@ -157,64 +157,55 @@ El archivo `.env` contiene información privada y no debe compartirse ni subirse
 3. Seleccionar **Create > Database**.
 4. Crear una base de datos denominada `carrito`.
 5. Abrir **Query Tool** sobre la base de datos creada.
-6. Abrir el siguiente archivo SQL:
-
-```text
-backend/src/database/carrito.sql
-```
-
+6. Abrir el archivo `backend/src/database/carrito.sql`.
 7. Ejecutar el script completo.
-8. Aplicar las migraciones en el orden indicado a continuación.
-9. Ejecutar el script de migración de contraseñas.
 
-Si se utiliza otro nombre para la base de datos, deberá coincidir con el configurado en `DATABASE_URL`.
+El archivo SQL contiene la estructura actualizada de la base de datos, incluyendo las modificaciones correspondientes a las migraciones 001, 002 y 003.
 
-### Migraciones de la base de datos
+No contiene registros iniciales ni contraseñas. Los usuarios y productos deberán registrarse mediante el sistema.
 
-Las migraciones permiten actualizar la estructura original de la base de datos sin necesidad de eliminarla y volver a crearla.
+No es necesario ejecutar las migraciones adicionales en instalaciones nuevas.
 
-Antes de aplicar las migraciones sobre una base de datos existente, se recomienda realizar una copia de seguridad y verificar cuáles ya fueron ejecutadas.
+El nombre de la base de datos deberá coincidir con el configurado en `DATABASE_URL`.
 
-Ejecutar los siguientes archivos mediante Query Tool, respetando su orden:
+### Actualización de bases de datos anteriores
+
+Para instalaciones que utilizan la estructura original, se conservan los siguientes archivos de migración:
 
 | Orden | Archivo | Finalidad |
 |---|---|---|
-| 1 | `migracion_001.sql` | Modificar la restricción de eliminación de usuarios con carritos asociados. |
-| 2 | `migracion_002.sql` | Incorporar restricciones de integridad sobre precios, stock, cantidades y productos duplicados dentro de un carrito. |
-| 3 | `migracion_003.sql` | Eliminar las tablas obsoletas de la estructura anterior. |
+| 1 | `migracion_001.sql` | Actualizar la restricción de eliminación de usuarios. |
+| 2 | `migracion_002.sql` | Incorporar restricciones de integridad. |
+| 3 | `migracion_003.sql` | Eliminar las tablas obsoletas. |
 
-Todos los archivos se encuentran en:
+Antes de ejecutar las migraciones, realizar una copia de seguridad y comprobar cuáles ya fueron aplicadas.
 
-```text
-backend/src/database/
-```
+Las migraciones no deben ejecutarse nuevamente si ya fueron aplicadas.
 
-**Importante:** las migraciones SQL no deben ejecutarse nuevamente si ya fueron aplicadas.
-
-Antes de ejecutar `migracion_003.sql`, verificar que las tablas obsoletas estén vacías y que no existan dependencias ni funcionalidades que las utilicen.
+Antes de ejecutar la tercera migración, verificar que las tablas obsoletas estén vacías y no tengan dependencias.
 
 ### Migración de contraseñas
 
-El archivo SQL original contiene contraseñas de prueba almacenadas en texto plano.
-
-Para convertirlas en contraseñas hasheadas, ejecutar desde la raíz del repositorio:
+Para bases de datos anteriores que todavía contienen contraseñas en texto plano, ejecutar desde la raíz del repositorio:
 
 ```powershell
 python -m backend.src.database.migrar_contrasenias
 ```
 
-Este procedimiento:
+Este procedimiento convierte las contraseñas existentes en hashes, conservando las credenciales de acceso de los usuarios.
 
-- Convierte las contraseñas existentes en hashes.
-- Conserva las contraseñas originales como credenciales de acceso.
-- Omite las contraseñas que ya reconoce como hasheadas.
-- Utiliza la conexión configurada en el archivo `.env`.
-
-No es necesario iniciar el servidor Flask para ejecutar este procedimiento, pero PostgreSQL debe estar funcionando.
+No es necesario realizar este procedimiento en instalaciones nuevas.
 
 ### Verificación de la base de datos
 
-Para comprobar las tablas existentes, ejecutar:
+La estructura actual está compuesta por cuatro tablas:
+
+- `usuario`
+- `producto`
+- `carrito`
+- `item_carrito`
+
+Para verificar las tablas creadas, ejecutar:
 
 ```sql
 SELECT table_name
@@ -222,20 +213,6 @@ FROM information_schema.tables
 WHERE table_schema = 'public'
 AND table_type = 'BASE TABLE'
 ORDER BY table_name;
-```
-
-Una vez aplicadas las migraciones, las tablas utilizadas por el sistema son:
-
-- `usuario`
-- `producto`
-- `carrito`
-- `item_carrito`
-
-Para consultar los usuarios sin exponer sus contraseñas:
-
-```sql
-SELECT idusuario, nombre, mail, rol
-FROM usuario;
 ```
 
 ## Ejecución del backend
@@ -460,7 +437,7 @@ La autenticación mediante sesiones está implementada, pero todavía no se exig
 
 La configuración actual permite cookies de sesión mediante HTTP para facilitar las pruebas locales. Para un entorno de producción deberá utilizarse HTTPS y habilitarse `SESSION_COOKIE_SECURE`.
 
-El archivo SQL original contiene credenciales de prueba y no debe utilizarse con información real o sensible.
+El archivo SQL actualizado contiene únicamente la estructura de la base de datos, sin registros iniciales, credenciales ni información personal.
 
 ## Pruebas realizadas
 
@@ -487,6 +464,8 @@ Entre los escenarios comprobados se encuentran:
 - Manejo de restricciones de integridad referencial.
 
 Estas verificaciones corresponden a pruebas manuales de desarrollo y no constituyen una suite automatizada exhaustiva.
+
+También se verificó la instalación desde cero de la estructura SQL sobre una base de datos temporal, comprobando la creación de las cuatro tablas, las 13 restricciones, el índice único de correos electrónicos, la ausencia de registros iniciales y la inserción de un producto con generación automática de su identificador.
 
 ## Control de versiones
 
