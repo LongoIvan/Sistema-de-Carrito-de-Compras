@@ -294,11 +294,13 @@ def quitar_stock(id):
     )
 
     if filas == 0:
-        productos = fetch_all("SELECT idproducto FROM producto")
+        producto = fetch_all(
+            "SELECT idproducto FROM producto WHERE idproducto = %s",
+            (id,)
+        )
 
-        for producto in productos:
-            if producto["idproducto"] == id:
-                return jsonify({"error": "Stock insuficiente"}), 400
+        if producto:
+            return jsonify({"error": "Stock insuficiente"}), 400
 
         return jsonify({"error": "Producto no encontrado"}), 404
 
