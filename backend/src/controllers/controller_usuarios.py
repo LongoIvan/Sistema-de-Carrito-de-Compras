@@ -88,7 +88,6 @@ def mostrar_rol(id):
 
 #--Modifica Valores--
 @usuarios_bp.route("/api/usuario/<int:id>/nombre", methods=["PATCH"])
-#@usuarios_bp.route("/api/usuario/<int:id>", methods=["PATCH"])
 def modificar_nombre(id):
     datos = request.get_json(silent=True)
 
@@ -164,7 +163,6 @@ def modificar_mail(id):
     }), 200
 
 @usuarios_bp.route("/api/usuario/<int:id>/contrasenia", methods=["PATCH"])
-#@usuarios_bp.route("/api/usuario/<int:id>", methods=["PATCH"])
 def modificar_contrasenia(id):
     datos = request.get_json(silent=True)
 
@@ -179,14 +177,7 @@ def modificar_contrasenia(id):
     if len(nuevaContra) < 8:
         return jsonify({"error": "La contraseña debe tener al menos 8 caracteres"}), 400
 
-    letraupper = False
-
-    for i in nuevaContra:
-        if i.isupper():
-            letraupper = True
-            break
-
-    if not letraupper:
+    if not any(letra.isupper() for letra in nuevaContra):
         return jsonify({"error": "La contraseña debe contener una mayuscula"}), 400
 
     contrasenia_hash = generate_password_hash(nuevaContra)
