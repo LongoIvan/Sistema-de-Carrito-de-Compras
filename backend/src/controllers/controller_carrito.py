@@ -4,14 +4,9 @@ from contextlib import closing
 # Flask
 from flask import Blueprint, jsonify, request, current_app
 
-# Modelos
-from backend.src.models.model_carrito import Carrito, estadocarrito
-from backend.src.models.model_item_carrito import ItemCarrito
-
 # Base de datos
 from backend.src.database.database import (
     fetch_all,
-    execute_query,
     execute_query_returning,
     get_connection
 )
@@ -31,9 +26,12 @@ def crear_carrito():
     if type(idusuario) is not int or idusuario <= 0:
         return jsonify({"error": "ID de usuario invalido"}), 400
 
-    usuarios = fetch_all("SELECT idusuario FROM usuario")
+    usuarios = fetch_all(
+        "SELECT idusuario FROM usuario WHERE idusuario = %s",
+        (idusuario,)
+    )
 
-    if not any(usuario["idusuario"] == idusuario for usuario in usuarios):
+    if not usuarios:
         return jsonify({"error": "Usuario no encontrado"}), 404
 
     consulta = """
@@ -54,15 +52,15 @@ def crear_carrito():
 
 @carritos_bp.route("/api/carritos/<int:id>", methods=["GET"])
 def consultar_carrito(id):
-    carritos = fetch_all("SELECT * FROM carrito")
-
-    carrito = next(
-        (carrito for carrito in carritos if carrito["idcarrito"] == id),
-        None
+    carritos = fetch_all(
+        "SELECT * FROM carrito WHERE idcarrito = %s",
+        (id,)
     )
 
-    if carrito is None:
+    if not carritos:
         return jsonify({"error": "Carrito no encontrado"}), 404
+
+    carrito = carritos[0]
 
     return jsonify(carrito), 200
 
@@ -312,18 +310,21 @@ def cancelar_carrito(id):
 @carritos_bp.route("/api/carritos/<int:id>/total", methods=["GET"])
 def calcular_total(id):
 
-    carritos = fetch_all("SELECT idcarrito FROM carrito")
+    carritos = fetch_all(
+        "SELECT idcarrito FROM carrito WHERE idcarrito = %s",
+        (id,)
+    )
 
-    if not any(c["idcarrito"] == id for c in carritos):
+    if not carritos:
         return jsonify({"error": "Carrito no encontrado"}), 404
 
-    consulta = f"""
+    consulta = """
         SELECT COALESCE(SUM(cantidad * precio_unitario), 0) AS total
         FROM item_carrito
-        WHERE idcarrito = {id}
+        WHERE idcarrito = %s
     """
 
-    resultado = fetch_all(consulta)
+    resultado = fetch_all(consulta, (id,))
 
     return jsonify({
         "idcarrito": id,
@@ -333,12 +334,15 @@ def calcular_total(id):
 @carritos_bp.route("/api/carritos/<int:id>/items", methods=["GET"])
 def mostrar_items(id):
 
-    carritos = fetch_all("SELECT idcarrito FROM carrito")
+    carritos = fetch_all(
+        "SELECT idcarrito FROM carrito WHERE idcarrito = %s",
+        (id,)
+    )
 
-    if not any(c["idcarrito"] == id for c in carritos):
+    if not carritos:
         return jsonify({"error": "Carrito no encontrado"}), 404
 
-    consulta = f"""
+    consulta = """
         SELECT
             i.id_item_carrito,
             i.id_item_producto AS idproducto,
@@ -349,10 +353,10 @@ def mostrar_items(id):
         FROM item_carrito AS i
         JOIN producto AS p
             ON i.id_item_producto = p.idproducto
-        WHERE i.idcarrito = {id}
+        WHERE i.idcarrito = %s
     """
 
-    items = fetch_all(consulta)
+    items = fetch_all(consulta, (id,))
 
     for item in items:
         item["precio_unitario"] = float(item["precio_unitario"])
@@ -362,50 +366,3 @@ def mostrar_items(id):
         "idcarrito": id,
         "items": items
     }), 200
-
-
-
-# #Devuelve variables
-# def mostrar_idcarrito(self):
-#     return self.idcarrito
-
-
-# def mostrar_id_usuario(self):
-#     return self.idusuario
-
-# def mostrar_fecha(self):
-#     return self.fecha
-
-# def mostrar_estado(self):
-#     return self.estado
-
-# def mostrar_items(self):
-#     return self.item
-
-# #Operadores:
-# def agregar_item(self, itemagre:ItemCarrito):
-#     if type(itemagre) == ItemCarrito and itemagre not in self.item:
-#         self.item.append(itemagre)
-#         print("--Item Añadido--")
-#     else:
-#         print("--ERROR - No se pudo añadir el item--")
-
-# def eliminar_item(self, itemelim:ItemCarrito):
-#     if type(itemelim) == ItemCarrito and itemelim in self.item:
-#         self.item.remove(itemelim)
-#         print("--Item Eliminado--")
-#     else:
-#         print("--ERROR - No se pudo eliminar el item--")
-
-# def calcular_total(self):
-#     total_compra = 0
-#     for i in self.item:
-#         total_compra += (i.cantidad * i.precio_unitario)
-
-#     return total_compra
-
-# def finalizar(self):
-#     self.estado = estadocarrito.Finalizado
-
-# def cancelar(self):
-#     self.estado = estadocarrito.Cancelado

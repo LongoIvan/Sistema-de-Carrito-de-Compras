@@ -11,7 +11,6 @@ from backend.src.models.model_item_carrito import ItemCarrito
 from backend.src.database.database import (
     fetch_all,
     execute_query,
-    execute_query_returning,
     get_connection
 )
 items_carrito_bp = Blueprint("items_carrito", __name__)
