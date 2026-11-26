@@ -124,7 +124,7 @@ Copy-Item .env.example .env
 Configurar las siguientes variables:
 
 ```env
-DATABASE_URL=postgresql://postgres:TU_CONTRASENA@localhost:5432/carrito
+DATABASE_URL=postgresql://postgres:usuario@localhost:5432/carrito
 SECRET_KEY=TU_CLAVE_SECRETA
 ```
 

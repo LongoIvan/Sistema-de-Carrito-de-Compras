@@ -184,7 +184,7 @@ def render_home() -> None:
     unidades_en_carrito = sum(_obtener_cantidad_item(it) for it in items_carrito)
 
     # ---------------------------------------------------------
-    # 1. TARJETAS KPI PRINCIPALES
+    # TARJETAS PRINCIPALES
     # ---------------------------------------------------------
     k1, k2, k3, k4 = st.columns(4)
     with k1:
@@ -198,7 +198,6 @@ def render_home() -> None:
         st.metric(
             label=f"Alerta bajo stock (≤ {int(umbral_bajo_stock)})",
             value=len(bajo_stock),
-            delta="Revisar reposición" if bajo_stock else "Stock saludable",
             delta_color="inverse" if bajo_stock else "normal",
         )
     with k3:
@@ -211,26 +210,13 @@ def render_home() -> None:
         st.metric(
             label="Total carrito",
             value=f"${total_carrito:,.2f}" if id_carrito is not None else "—",
-            delta="Se valida al finalizar",
         )
 
     st.divider()
 
+ 
     # ---------------------------------------------------------
-    # 2. GRÁFICOS DE INVENTARIO Y CATEGORÍAS
-    # ---------------------------------------------------------
-    g1, g2 = st.columns([1.3, 1])
-    with g1:
-        with st.container(border=True):
-            _render_grafico_stock(productos)
-    with g2:
-        with st.container(border=True):
-            _render_grafico_categorias(productos)
-
-    st.divider()
-
-    # ---------------------------------------------------------
-    # 3. PERFIL ACTIVO, ALERTAS DE STOCK Y CARRITO
+    #  PERFIL ACTIVO, ALERTAS DE STOCK Y CARRITO
     # ---------------------------------------------------------
     col_izq, col_der = st.columns([1, 1.2])
 
@@ -279,20 +265,6 @@ def render_home() -> None:
 
     st.divider()
 
-    # ---------------------------------------------------------
-    # 4. ACCESOS RÁPIDOS ENTRE VISTAS
-    # ---------------------------------------------------------
-    st.subheader("Accesos rápidos")
-    a1, a2, a3 = st.columns(3)
-    with a1:
-        if st.button("Ir a Productos y Stock", use_container_width=True):
-            st.switch_page("pages/producto.py")
-    with a2:
-        if st.button("Ir a Carrito y Checkout", type="primary", use_container_width=True):
-            st.switch_page("pages/carrito.py")
-    with a3:
-        if st.button("Ir a Usuarios", use_container_width=True):
-            st.switch_page("pages/usuario.py")
 
 
 render_home()
