@@ -184,12 +184,17 @@ def render_carrito() -> None:
 
     st.divider()
 
+
     # ---------------------------------------------------------
-    # 2. ESTADO, TOTAL E ÍTEMS DEL CARRITO
+    # 2. ESTADO DEL CARRITO
     # ---------------------------------------------------------
     estado_actual, err_estado = _consultar_estado_carrito(id_carrito)
+
     if err_estado is not None:
-        st.error(f"No se pudo consultar el carrito #{id_carrito} ({err_estado['status_code']}): {err_estado['data']}")
+        st.error(
+            f"No se pudo consultar el carrito #{id_carrito} "
+            f"({err_estado['status_code']}): {err_estado['data']}"
+        )
         return
 
     st.session_state["estado_carrito"] = estado_actual or "Desconocido"
@@ -197,133 +202,271 @@ def render_carrito() -> None:
 
     items, total_carrito, err_items = _consultar_items_y_total(id_carrito)
 
-    col_hdr_1, col_hdr_2, col_hdr_3, col_hdr_4 = st.columns([2, 1, 1, 1])
-    with col_hdr_1:
-        st.subheader(f"Ítems del carrito #{id_carrito}")
-    with col_hdr_2:
-        st.metric("Estado", estado_actual or "—")
-    with col_hdr_3:
-        st.metric("Total", f"${total_carrito:,.2f}")
-    with col_hdr_4:
+    col_estado, col_refrescar = st.columns([3, 1])
+
+    with col_estado:
+        st.metric("Estado del carrito", estado_actual or "—")
+
+    with col_refrescar:
         st.write("")
         if st.button("Refrescar", use_container_width=True):
             st.rerun()
 
     if err_items is not None:
-        st.error(f"Error al obtener ítems ({err_items['status_code']}): {err_items['data']}")
-    elif not items:
-        st.info("El carrito está vacío.")
-    else:
-        st.dataframe(items, use_container_width=True)
+        st.error(
+            f"Error al obtener ítems "
+            f"({err_items['status_code']}): {err_items['data']}"
+        )
+        return
 
     st.divider()
 
     # ---------------------------------------------------------
-    # 3. AGREGAR, MODIFICAR O ELIMINAR ÍTEMS (SOLO PENDIENTE)
+    # 3. AGREGAR PRODUCTOS
     # ---------------------------------------------------------
-    st.subheader("Administrar ítems (solo carritos Pendientes)")
+    st.subheader("Agregar productos")
+
     if not es_pendiente:
-        st.info(f"El carrito está en estado '{estado_actual}'. Solo se modifican ítems cuando está Pendiente.")
+        st.info(
+            f"El carrito está en estado '{estado_actual}'. "
+            "No se pueden modificar sus productos."
+        )
+
     else:
-        # Agregar ítem
-        col_add_1, col_add_2, col_add_3 = st.columns([2, 1.5, 1.5])
-        with col_add_1:
-            id_prod_add = int(
-                st.number_input("ID de producto", min_value=1, step=1, value=1, key="carrito_id_prod")
+        # Consultar productos para obtener nombres y stock
+        res_productos = api.listar_productos()
+
+        if res_productos["ok"]:
+            productos = res_productos["data"]
+
+            if isinstance(productos, dict):
+                productos = productos.get("productos", [])
+
+            productos_disponibles = [
+                p for p in productos
+                if p.get("activo", True) and int(p.get("stock", 0)) > 0
+            ]
+
+            # Guardar el stock actual de cada producto
+            stock_por_producto = {
+                int(p["idproducto"]): int(p["stock"])
+                for p in productos
+            }
+
+        else:
+            productos_disponibles = []
+            stock_por_producto = {}
+
+            st.error(
+                f"No se pudieron cargar los productos "
+                f"({res_productos['status_code']}): {res_productos['data']}"
             )
-        with col_add_2:
+
+        col_prod, col_cant, col_btn = st.columns([2, 1, 1])
+
+        with col_prod:
+            if productos_disponibles:
+                opciones_productos = {
+                    int(p["idproducto"]): (
+                        f"{p['nombre']} (ID: {p['idproducto']}) - "
+                        f"Stock: {p['stock']} - "
+                        f"${float(p['precio']):,.2f}"
+                    )
+                    for p in productos_disponibles
+                }
+
+                id_prod_add = st.selectbox(
+                    "Seleccionar producto",
+                    options=list(opciones_productos.keys()),
+                    format_func=lambda k: opciones_productos[k],
+                    key="carrito_id_prod",
+                )
+            else:
+                id_prod_add = None
+                st.warning("No hay productos disponibles para agregar.")
+
+        with col_cant:
             cant_add = int(
-                st.number_input("Cantidad a agregar", min_value=1, step=1, value=1, key="carrito_cant_prod")
+                st.number_input(
+                    "Cantidad",
+                    min_value=1,
+                    step=1,
+                    value=1,
+                    key="carrito_cant_prod",
+                )
             )
-        with col_add_3:
+
+        with col_btn:
             st.write("")
-            st.write("")
-            if st.button("Agregar ítem", use_container_width=True):
-                with st.spinner("Agregando ítem..."):
+            if st.button(
+                "Agregar ítem",
+                type="primary",
+                use_container_width=True,
+                disabled=id_prod_add is None,
+            ):
+                with st.spinner("Agregando producto..."):
                     res_add = api._request(
                         "POST",
                         f"/api/carritos/{id_carrito}/items",
-                        json_body={"idproducto": id_prod_add, "cantidad": cant_add},
+                        json_body={
+                            "idproducto": int(id_prod_add),
+                            "cantidad": cant_add,
+                        },
                     )
+
                 if res_add["ok"]:
-                    st.toast("Ítem agregado/actualizado (no descuenta stock hasta finalizar).")
+                    st.toast("Producto agregado al carrito.")
                     st.rerun()
                 else:
-                    st.error(f"Error ({res_add['status_code']}): {res_add['data']}")
-
-        # Aumentar / disminuir / eliminar ítem existente por id_item_carrito
-        if items:
-            st.markdown("#### Modificar o quitar un ítem existente")
-            opciones_items = {
-                int(it["id_item_carrito"]): (
-                    f"Ítem #{it['id_item_carrito']} — {it.get('nombre', 'Prod')} "
-                    f"(ID prod: {it.get('idproducto')}, cant: {it.get('cantidad')})"
-                )
-                for it in items
-                if it.get("id_item_carrito") is not None
-            }
-
-            if opciones_items:
-                c_sel, c_delta, c_mas, c_menos, c_del = st.columns([2.4, 1.2, 1.1, 1.1, 1.1])
-                with c_sel:
-                    id_item_sel = int(
-                        st.selectbox(
-                            "Seleccionar ítem del carrito",
-                            options=list(opciones_items.keys()),
-                            format_func=lambda k: opciones_items[k],
-                            key="sel_id_item_carrito",
-                        )
+                    st.error(
+                        f"Error ({res_add['status_code']}): {res_add['data']}"
                     )
-                with c_delta:
-                    delta = int(
-                        st.number_input("Unidades", min_value=1, step=1, value=1, key="delta_unidades_item")
-                    )
-                with c_mas:
-                    st.write("")
-                    st.write("")
-                    if st.button("+ Subir", use_container_width=True):
-                        with st.spinner("Aumentando cantidad..."):
-                            res_inc = api._request(
-                                "PATCH",
-                                f"/api/carritos/{id_carrito}/items/{id_item_sel}/aumentar",
-                                json_body={"cantidad": delta},
-                            )
-                        if res_inc["ok"]:
-                            st.toast("Cantidad aumentada.")
-                            st.rerun()
-                        else:
-                            st.error(f"Error ({res_inc['status_code']}): {res_inc['data']}")
-                with c_menos:
-                    st.write("")
-                    st.write("")
-                    if st.button("- Bajar", use_container_width=True):
-                        with st.spinner("Disminuyendo cantidad..."):
-                            res_dec = api._request(
-                                "PATCH",
-                                f"/api/carritos/{id_carrito}/items/{id_item_sel}/disminuir",
-                                json_body={"cantidad": delta},
-                            )
-                        if res_dec["ok"]:
-                            st.toast("Cantidad actualizada (si llegó a 0, el ítem fue eliminado).")
-                            st.rerun()
-                        else:
-                            st.error(f"Error ({res_dec['status_code']}): {res_dec['data']}")
-                with c_del:
-                    st.write("")
-                    st.write("")
-                    if st.button("Quitar", use_container_width=True):
-                        with st.spinner("Eliminando ítem..."):
-                            res_rm = api._request(
-                                "DELETE",
-                                f"/api/carritos/{id_carrito}/items/{id_item_sel}",
-                            )
-                        if res_rm["ok"]:
-                            st.toast("Ítem eliminado del carrito.")
-                            st.rerun()
-                        else:
-                            st.error(f"Error ({res_rm['status_code']}): {res_rm['data']}")
 
     st.divider()
+
+    # ---------------------------------------------------------
+    # 4. LISTA DE PRODUCTOS DEL CARRITO
+    # ---------------------------------------------------------
+    st.subheader("Productos en el carrito")
+
+    if not items:
+        st.info("Todavía no hay productos en este carrito.")
+
+    else:
+        for it in items:
+            id_item = it.get("id_item_carrito")
+            id_producto = it.get("idproducto")
+
+            try:
+                cantidad = int(it.get("cantidad", 1))
+            except (ValueError, TypeError):
+                cantidad = 1
+
+            nombre = it.get("nombre", f"Producto {id_producto}")
+            precio = float(it.get("precio", 0) or 0)
+            subtotal = float(it.get("subtotal", precio * cantidad) or 0)
+
+            stock_maximo = None
+
+            if id_producto is not None:
+                try:
+                    stock_maximo = stock_por_producto.get(int(id_producto))
+                except (ValueError, TypeError):
+                    pass
+
+            with st.container(border=True):
+                col_info, col_menos, col_cantidad, col_mas, col_eliminar = (
+                    st.columns([3, 0.7, 0.8, 0.7, 1.2])
+                )
+
+                with col_info:
+                    st.markdown(f"**{nombre}**")
+                    st.caption(
+                        f"Precio unitario: ${precio:,.2f}"
+                    )
+                    st.caption(
+                        f"Subtotal: ${subtotal:,.2f}"
+                    )
+
+                if es_pendiente and id_item is not None:
+
+                    with col_menos:
+                        if st.button(
+                            "−",
+                            key=f"menos_{id_item}",
+                            use_container_width=True,
+                            disabled=cantidad <= 1,
+                        ):
+                            with st.spinner("Actualizando cantidad..."):
+                                res_dec = api._request(
+                                    "PATCH",
+                                    f"/api/carritos/{id_carrito}/items/{id_item}/disminuir",
+                                    json_body={"cantidad": 1},
+                                )
+
+                            if res_dec["ok"]:
+                                st.rerun()
+                            else:
+                                st.error(
+                                    f"Error ({res_dec['status_code']}): "
+                                    f"{res_dec['data']}"
+                                )
+
+                    with col_cantidad:
+                        st.markdown(
+                            f"<div style='text-align:center; padding-top:7px;'>"
+                            f"<strong>{cantidad}</strong></div>",
+                            unsafe_allow_html=True,
+                        )
+
+                    with col_mas:
+                        if st.button(
+                            "+",
+                            key=f"mas_{id_item}",
+                            use_container_width=True,
+                            disabled=(
+                                stock_maximo is None
+                                or cantidad >= stock_maximo
+                            ),
+                        ):
+                            with st.spinner("Actualizando cantidad..."):
+                                res_inc = api._request(
+                                    "PATCH",
+                                    f"/api/carritos/{id_carrito}/items/{id_item}/aumentar",
+                                    json_body={"cantidad": 1},
+                                )
+
+                            if res_inc["ok"]:
+                                st.rerun()
+                            else:
+                                st.error(
+                                    f"Error ({res_inc['status_code']}): "
+                                    f"{res_inc['data']}"
+                                )
+
+                    with col_eliminar:
+                        if st.button(
+                            "Eliminar",
+                            key=f"eliminar_{id_item}",
+                            use_container_width=True,
+                        ):
+                            with st.spinner("Eliminando producto..."):
+                                res_rm = api._request(
+                                    "DELETE",
+                                    f"/api/carritos/{id_carrito}/items/{id_item}",
+                                )
+
+                            if res_rm["ok"]:
+                                st.toast("Producto eliminado del carrito.")
+                                st.rerun()
+                            else:
+                                st.error(
+                                    f"Error ({res_rm['status_code']}): "
+                                    f"{res_rm['data']}"
+                                )
+
+                else:
+                    with col_cantidad:
+                        st.markdown(
+                            f"<div style='text-align:center; padding-top:7px;'>"
+                            f"<strong>{cantidad}</strong></div>",
+                            unsafe_allow_html=True,
+                        )
+
+    st.divider()
+
+    # ---------------------------------------------------------
+    # 5. TOTAL DE LA COMPRA
+    # ---------------------------------------------------------
+    st.subheader("Total de la compra")
+
+    st.metric(
+        "Total",
+        f"${total_carrito:,.2f}",
+    )
+
+    st.divider()
+
 
     # ---------------------------------------------------------
     # 4. FINALIZAR O CANCELAR COMPRA
