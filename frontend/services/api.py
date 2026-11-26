@@ -100,7 +100,7 @@ def quitar_stock_producto(id_producto: int, stock: int) -> dict:
 
 
 def listar_productos() -> dict:
-    return _request("GET", "/productos")
+    return _request("GET", "/api/productos")
 
 
 def obtener_producto(id_producto: int) -> dict:
