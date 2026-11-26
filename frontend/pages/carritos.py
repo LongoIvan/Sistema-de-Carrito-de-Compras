@@ -50,6 +50,7 @@ def _consultar_items_y_total(id_carrito: int) -> tuple[list[dict], float, dict |
     return items, total, None
 
 
+
 def render_carrito() -> None:
     st.title("Carrito de Compras e Ítems")
 
@@ -57,44 +58,118 @@ def render_carrito() -> None:
     id_carrito_sesion = st.session_state.get("id_carrito")
 
     # ---------------------------------------------------------
-    # 1. SELECCIONAR O CREAR CARRITO PENDIENTE
+    # 1. SELECCIONAR O CREAR CARRITO
     # ---------------------------------------------------------
     st.subheader("Gestión del carrito")
-    col_u, col_c, col_crear = st.columns([1.5, 1.5, 1.5])
+
+    col_u, col_c, col_crear = st.columns([1.5, 2, 1.5])
 
     with col_u:
         id_usuario = int(
-            st.number_input("ID de usuario", min_value=1, step=1, value=id_usuario_sesion)
-        )
-        st.session_state["id_usuario"] = id_usuario
-
-    with col_c:
-        id_carrito = int(
             st.number_input(
-                "ID de carrito",
+                "ID de usuario",
                 min_value=1,
                 step=1,
-                value=int(id_carrito_sesion) if id_carrito_sesion else 1,
+                value=id_usuario_sesion,
             )
         )
-        st.session_state["id_carrito"] = id_carrito
+
+    st.session_state["id_usuario"] = id_usuario
+
+    # Si cambia el usuario, se descarta el carrito seleccionado
+    usuario_anterior = st.session_state.get("usuario_carrito_anterior")
+
+    if usuario_anterior != id_usuario:
+        st.session_state.pop("id_carrito", None)
+        st.session_state.pop("sel_id_carrito", None)
+        st.session_state["usuario_carrito_anterior"] = id_usuario
+
+    # Consultar los carritos del usuario seleccionado
+    with st.spinner("Buscando carritos del usuario..."):
+        res_carritos = api.listar_carritos_usuario(id_usuario)
+
+    if not res_carritos["ok"]:
+        st.error(
+            f"No se pudieron obtener los carritos "
+            f"({res_carritos['status_code']}): {res_carritos['data']}"
+        )
+        return
+
+    carritos = res_carritos["data"].get("carritos", [])
+
+    # Crear diccionario de opciones: ID -> descripción
+    opciones_carritos = {
+        int(c["idcarrito"]): (
+            f"Carrito #{c['idcarrito']} - {c.get('estado', 'Sin estado')}"
+        )
+        for c in carritos
+    }
+
+    with col_c:
+        if opciones_carritos:
+            ids_carritos = list(opciones_carritos.keys())
+
+            # Si el carrito anterior no pertenece al usuario,
+            # se selecciona el primero de su lista.
+            if st.session_state.get("sel_id_carrito") not in ids_carritos:
+                st.session_state.pop("sel_id_carrito", None)
+
+            id_carrito = st.selectbox(
+                "Seleccionar carrito",
+                options=ids_carritos,
+                format_func=lambda k: opciones_carritos[k],
+                key="sel_id_carrito",
+            )
+
+            st.session_state["id_carrito"] = int(id_carrito)
+
+        else:
+            id_carrito = None
+            st.session_state.pop("id_carrito", None)
+            st.info("Este usuario todavía no tiene carritos.")
 
     with col_crear:
         st.write("")
         st.write("")
-        if st.button("Crear carrito pendiente", type="primary", use_container_width=True):
+        if st.button(
+            "Crear carrito pendiente",
+            type="primary",
+            use_container_width=True,
+        ):
             with st.spinner("Creando carrito pendiente..."):
-                res_crear = api._request("POST", "/api/carritos", json_body={"idusuario": id_usuario})
+                res_crear = api._request(
+                    "POST",
+                    "/api/carritos",
+                    json_body={"idusuario": id_usuario},
+                )
+
             if res_crear["ok"]:
                 nuevo_id = _extraer_id_carrito(res_crear["data"])
+
                 if nuevo_id is not None:
                     st.session_state["id_carrito"] = nuevo_id
-                    id_carrito = nuevo_id
-                st.session_state["estado_carrito"] = "Pendiente"
-                st.success(f"Carrito pendiente creado (ID: {nuevo_id if nuevo_id else id_carrito}).")
-                st.rerun()
+                    st.session_state["sel_id_carrito"] = nuevo_id
+                    st.session_state["estado_carrito"] = "Pendiente"
+
+                    st.success(
+                        f"Carrito pendiente creado (ID: {nuevo_id})."
+                    )
+                    st.rerun()
+                else:
+                    st.error(
+                        "El carrito se creó, pero no se pudo obtener su ID."
+                    )
             else:
-                st.error(f"Error ({res_crear['status_code']}): {res_crear['data']}")
+                st.error(
+                    f"Error ({res_crear['status_code']}): "
+                    f"{res_crear['data']}"
+                )
+
+    # Si el usuario no tiene carritos, no continuar con las operaciones
+    if id_carrito is None:
+        return
+
+    st.divider()
 
     if "ultimo_aviso_carrito" in st.session_state:
         aviso = st.session_state.pop("ultimo_aviso_carrito")

@@ -49,6 +49,39 @@ def crear_carrito():
         "estado": "Pendiente"
     }), 201
 
+#Generado por ChatGPT
+@carritos_bp.route("/api/carritos/usuario/<int:idusuario>", methods=["GET"])
+def listar_carritos_usuario(idusuario):
+
+    if idusuario <= 0:
+        return jsonify({"error": "ID de usuario invalido"}), 400
+
+    # 1. Verificar que el usuario exista
+    usuarios = fetch_all(
+        "SELECT idusuario FROM usuario WHERE idusuario = %s",
+        (idusuario,)
+    )
+
+    if not usuarios:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    # 2. Obtener únicamente los carritos de ese usuario
+    carritos = fetch_all(
+        """
+        SELECT *
+        FROM carrito
+        WHERE idusuario = %s
+        ORDER BY idcarrito DESC
+        """,
+        (idusuario,)
+    )
+
+    # 3. Devolver los resultados
+    return jsonify({
+        "idusuario": idusuario,
+        "carritos": carritos
+    }), 200
+
 
 @carritos_bp.route("/api/carritos/<int:id>", methods=["GET"])
 def consultar_carrito(id):

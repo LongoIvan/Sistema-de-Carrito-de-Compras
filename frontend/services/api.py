@@ -127,6 +127,11 @@ def crear_carrito(id_usuario: int) -> dict:
     return _request("POST", "/carritos", json_body={"idusuario": id_usuario})
 
 
+#Generado por ChatGPT
+def listar_carritos_usuario(id_usuario: int) -> dict:
+    return _request("GET", f"/api/carritos/usuario/{id_usuario}")
+
+
 def obtener_items_carrito(id_carrito: int) -> dict:
     return _request("GET", f"/carritos/{id_carrito}/items")
 
